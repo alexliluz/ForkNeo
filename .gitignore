@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.tmp/
+.env
+.forkneo/reports/*.md
+!.forkneo/reports/.gitkeep
+.forkneo/tmp/
+*.log
