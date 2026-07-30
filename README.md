@@ -29,7 +29,7 @@ The target becomes independent because GitHub creates it as a normal repository 
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 22 or newer; CI covers Node.js 22, 24, and 26 on Ubuntu, macOS, and Windows
 - Git
 - Git LFS for every `forkneo convert` operation; ForkNeo verifies the executable before deciding whether the source contains LFS objects
 - GitHub CLI `gh` or a valid `GITHUB_TOKEN`
@@ -204,6 +204,8 @@ Each report records:
 
 - ForkNeo creates a new repository. It does not delete or modify the original source repository.
 - ForkNeo does not automatically delete remote targets after partial success.
+- v0.2.0 no longer supports Node.js 20 because that release line is end-of-life.
+- A failed conversion never triggers automatic deletion of an already-created target; inspect it before taking a separately authorized cleanup action.
 - ForkNeo should be used with an account that is allowed to create repositories and push mirrored refs.
 - Fine-grained access tokens still need enough scope to read the source and create/write the target.
 - Authenticated clone and push paths require credential-free `https://github.com` repository URLs; SSH, other hosts, and URLs containing credentials are rejected.
@@ -234,6 +236,11 @@ npm run typecheck
 npm run build
 node dist/index.js --help
 ```
+
+Pull requests must pass the complete `CI` matrix. The stable `CI` aggregate
+check succeeds only when every operating-system and Node.js matrix job passes.
+The workflow uses the committed npm lockfile and does not receive repository
+secrets.
 
 ## License
 
