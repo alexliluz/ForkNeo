@@ -162,6 +162,29 @@ With `--source`, verification compares the selected default branch and every
 and mismatched refs in ref-name order. A single difference returns a non-zero
 exit code.
 
+### Machine-readable output
+
+Each command can write its successful result as one JSON document:
+
+```bash
+forkneo scan --json
+forkneo convert owner/project --dry-run --json
+forkneo verify owner/project-neo --source owner/project --json
+```
+
+Successful JSON is written to stdout. Status activity uses stderr, and failures
+retain human-readable text on stderr with a non-zero exit code. An account with
+no forks returns:
+
+```json
+{
+  "repositories": []
+}
+```
+
+`--json` changes presentation only; it does not imply `--dry-run` or change any
+GitHub, Git, Git LFS, or verification operation.
+
 ## Typical Workflow
 
 1. Authenticate with `gh auth login` or set `GITHUB_TOKEN`.
