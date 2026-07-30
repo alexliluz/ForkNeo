@@ -28,6 +28,7 @@ describe("ShellGitService", () => {
         "C:/tmp/repo.git",
       ],
       expect.objectContaining({
+        extendEnv: false,
         env: expect.objectContaining({
           GIT_TERMINAL_PROMPT: "0",
           GIT_CONFIG_KEY_0:
@@ -41,6 +42,7 @@ describe("ShellGitService", () => {
       ["push", "--mirror", "https://github.com/a/target.git"],
       expect.objectContaining({
         cwd: "C:/tmp/repo.git",
+        extendEnv: false,
         env: expect.objectContaining({
           GIT_CONFIG_KEY_0:
             "http.https://github.com/a/target.git.extraHeader",
@@ -114,6 +116,7 @@ describe("ShellGitService", () => {
       ["lfs", "fetch", "--all", "origin"],
       expect.objectContaining({
         cwd: "C:/tmp/repo.git",
+        extendEnv: false,
         env: expect.objectContaining({
           GIT_CONFIG_KEY_0:
             "http.https://github.com/a/source.git.extraHeader",
@@ -125,6 +128,7 @@ describe("ShellGitService", () => {
       ["lfs", "push", "--all", "https://github.com/a/target.git"],
       expect.objectContaining({
         cwd: "C:/tmp/repo.git",
+        extendEnv: false,
         env: expect.objectContaining({
           GIT_CONFIG_KEY_0:
             "http.https://github.com/a/target.git.extraHeader",

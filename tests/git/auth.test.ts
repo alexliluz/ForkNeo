@@ -214,16 +214,17 @@ describe("createGitAuthentication", () => {
     );
     scratchDirectories.push(directory);
 
-    const markerPath = path.join(directory, "sentinel-invoked");
+    const helperMarkerPath = path.join(directory, "helper-invoked");
+    const askpassMarkerPath = path.join(directory, "askpass-invoked");
     await createSentinelCommand(
       directory,
       "git-credential-sentinel",
-      markerPath,
+      helperMarkerPath,
     );
     const askpassPath = await createSentinelCommand(
       directory,
       "askpass-sentinel",
-      markerPath,
+      askpassMarkerPath,
     );
     const globalConfigPath = path.join(directory, "global.gitconfig");
     const isolatedEnv = {
@@ -253,6 +254,24 @@ describe("createGitAuthentication", () => {
       SSH_ASKPASS: askpassPath,
       GIT_CONFIG_PARAMETERS: "'credential.helper=sentinel'",
     };
+    await execa("git", ["credential", "fill"], {
+      env: { ...baseEnv, GIT_TERMINAL_PROMPT: "0" },
+      extendEnv: false,
+      input: "protocol=https\nhost=github.com\n\n",
+      reject: false,
+      timeout: 10_000,
+    });
+    await expect(fs.readFile(helperMarkerPath, "utf8")).resolves.toContain(
+      "invoked",
+    );
+    await expect(fs.readFile(askpassMarkerPath, "utf8")).resolves.toContain(
+      "invoked",
+    );
+    await Promise.all([
+      fs.rm(helperMarkerPath, { force: true }),
+      fs.rm(askpassMarkerPath, { force: true }),
+    ]);
+
     const authentication = createGitAuthentication(
       "https://github.com/alex/project.git",
       "rejected-token",
@@ -261,13 +280,15 @@ describe("createGitAuthentication", () => {
 
     const result = await execa("git", ["credential", "fill"], {
       env: authentication.env,
+      extendEnv: false,
       input: "protocol=https\nhost=github.com\n\n",
       reject: false,
       timeout: 10_000,
     });
 
     expect(result.exitCode).not.toBe(0);
-    await expect(fs.access(markerPath)).rejects.toThrow();
+    await expect(fs.access(helperMarkerPath)).rejects.toThrow();
+    await expect(fs.access(askpassMarkerPath)).rejects.toThrow();
     await expect(fs.readFile(globalConfigPath, "utf8")).resolves.toBe(
       persistedConfigBefore,
     );

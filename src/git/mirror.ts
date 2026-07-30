@@ -4,6 +4,7 @@ import { ForkNeoError } from "../utils/errors.js";
 import {
   createGitAuthentication,
   redactGitSecrets,
+  type GitAuthentication,
 } from "./auth.js";
 
 type CommandResult = { stdout: string; stderr: string };
@@ -20,6 +21,17 @@ const defaultRunner: CommandRunner = async (file, args, options) => {
     stderr: String(result.stderr ?? ""),
   };
 };
+
+function authenticatedOptions(
+  options: Options,
+  authentication: GitAuthentication,
+): Options {
+  return {
+    ...options,
+    env: authentication.env,
+    extendEnv: false,
+  };
+}
 
 export class ShellGitService {
   constructor(private readonly run: CommandRunner = defaultRunner) {}
@@ -58,7 +70,7 @@ export class ShellGitService {
     return this.execute(
       operation,
       args,
-      { ...options, env: authentication.env },
+      authenticatedOptions(options, authentication),
       authentication.secrets,
     );
   }
@@ -72,7 +84,7 @@ export class ShellGitService {
     await this.execute(
       "mirror clone",
       ["clone", "--mirror", authentication.url, directory],
-      { reject: true, env: authentication.env },
+      authenticatedOptions({ reject: true }, authentication),
       authentication.secrets,
     );
   }
@@ -86,7 +98,10 @@ export class ShellGitService {
     await this.execute(
       "mirror push",
       ["push", "--mirror", authentication.url],
-      { cwd: directory, reject: true, env: authentication.env },
+      authenticatedOptions(
+        { cwd: directory, reject: true },
+        authentication,
+      ),
       authentication.secrets,
     );
   }
@@ -148,7 +163,10 @@ export class ShellGitService {
     await this.execute(
       "LFS push",
       ["lfs", "push", "--all", authentication.url],
-      { cwd: directory, reject: true, env: authentication.env },
+      authenticatedOptions(
+        { cwd: directory, reject: true },
+        authentication,
+      ),
       authentication.secrets,
     );
   }
