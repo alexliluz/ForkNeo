@@ -1,6 +1,6 @@
 # ForkNeo Release Hardening Design
 
-- **Status:** Approved direction, written specification pending user review
+- **Status:** Approved
 - **Date:** 2026-07-30
 - **Target release:** v0.2.0
 
