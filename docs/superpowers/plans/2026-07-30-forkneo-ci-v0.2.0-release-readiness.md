@@ -14,8 +14,8 @@
 - Test Ubuntu, macOS, and Windows with Node.js 22, 24, and 26.
 - Every matrix job must run `npm ci`, `npm test`, `npm run typecheck`, `npm run build`, and `node dist/index.js --help`.
 - Use the committed `package-lock.json`; do not generate a second package-manager lockfile.
-- Use `actions/checkout` v6.0.2 commit `de0fac2e4500dabe0009e67214ff5f5447ce83dd`.
-- Use `actions/setup-node` v6.4.0 commit `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e`.
+- Use `actions/checkout` v7.0.1 commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+- Use `actions/setup-node` v7.0.0 commit `820762786026740c76f36085b0efc47a31fe5020`.
 - Give the workflow read-only repository contents permission and no secrets.
 - Require the stable `CI` status check only after its name and successful run are visible on the repository.
 - Publish v0.2.0 only after all unit tests, type checks, builds, smoke tests, matrix jobs, acceptance checks, and genuine review are complete.
@@ -39,8 +39,8 @@
 
 ## Current Official Baseline
 
-- GitHub's official `actions/checkout` repository identifies v6.0.2 as the current release and resolves it to commit `de0fac2e4500dabe0009e67214ff5f5447ce83dd`.
-- GitHub's official `actions/setup-node` repository identifies v6.4.0 as the current release and resolves it to commit `48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e`.
+- GitHub's official `actions/checkout` repository identifies v7.0.1 as the current release and resolves it to commit `3d3c42e5aac5ba805825da76410c181273ba90b1`.
+- GitHub's official `actions/setup-node` repository identifies v7.0.0 as the current release and resolves it to commit `820762786026740c76f36085b0efc47a31fe5020`.
 - Node.js lists v22 and v24 as LTS, v26 as Current, and v20 as end-of-life as of 2026-07-30.
 - Recheck these official sources before implementation if execution occurs on another date:
   - <https://github.com/actions/checkout/releases>
@@ -263,9 +263,9 @@ jobs:
           - 26
     steps:
       - name: Check out repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
