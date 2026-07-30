@@ -12,7 +12,7 @@ async function readJson(relativeUrl: string): Promise<Record<string, unknown>> {
 }
 
 describe("release metadata", () => {
-  it("keeps package, lockfile, and CLI versions at v0.2.0", async () => {
+  it("keeps package, lockfile, and CLI versions at v0.3.0", async () => {
     const packageJson = await readJson("../package.json");
     const packageLock = await readJson("../package-lock.json");
     const lockPackages = packageLock.packages as Record<
@@ -20,7 +20,7 @@ describe("release metadata", () => {
       Record<string, unknown>
     >;
 
-    expect(VERSION).toBe("0.2.0");
+    expect(VERSION).toBe("0.3.0");
     expect(packageJson.version).toBe(VERSION);
     expect(packageLock.version).toBe(VERSION);
     expect(lockPackages[""].version).toBe(VERSION);
