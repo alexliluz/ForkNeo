@@ -48,7 +48,9 @@ describe("inspectGitLfs", () => {
 
     await expect(inspectGitLfs("/tmp/repo.git", run)).rejects.toMatchObject({
       code: "GIT_LFS_UNAVAILABLE",
-      hint: expect.stringMatching(/install Git LFS/i),
+      hint: expect.stringMatching(
+        /install Git LFS[\s\S]*no target repository was created/i,
+      ),
     });
     expect(run).toHaveBeenCalledTimes(1);
   });
@@ -64,7 +66,9 @@ describe("inspectGitLfs", () => {
 
     await expect(inspectGitLfs("/tmp/repo.git", run)).rejects.toMatchObject({
       code: "GIT_LFS_INSPECTION_FAILED",
-      hint: expect.stringMatching(/no refs or LFS objects were pushed/i),
+      hint: expect.stringMatching(
+        /repair[\s\S]*no target repository was created/i,
+      ),
     });
   });
 });

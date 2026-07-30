@@ -23,7 +23,7 @@ export async function inspectGitLfs(
     throw new ForkNeoError(
       "GIT_LFS_UNAVAILABLE",
       "Git LFS is required to inspect a source mirror safely.",
-      "Install Git LFS, run `git lfs version`, then retry. The target repository exists, but no refs or LFS objects were pushed.",
+      "Install Git LFS, run `git lfs version`, then retry. No target repository was created.",
       { cause: error },
     );
   }
@@ -39,7 +39,7 @@ export async function inspectGitLfs(
     throw new ForkNeoError(
       "GIT_LFS_INSPECTION_FAILED",
       "Git LFS could not inspect all objects in the source mirror.",
-      "Repair the mirror or Git LFS installation, then retry. The target repository exists, but no refs or LFS objects were pushed.",
+      "Repair the mirror or Git LFS installation, then retry. No target repository was created.",
       { cause: error },
     );
   }

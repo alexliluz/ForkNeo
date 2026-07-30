@@ -119,6 +119,18 @@ Choose a specific target name:
 forkneo convert owner/project --name project-independent
 ```
 
+Validate a proposed conversion without making remote changes:
+
+```bash
+forkneo convert owner/project --name project-independent --dry-run
+```
+
+Dry-run mode validates the source fork and target name, reads the exact source
+refs, clones and prunes a temporary mirror, and checks Git LFS availability
+and pointer detection. It does not ask for conversion confirmation, download
+all LFS objects, create or update a GitHub repository, push data, or write a
+migration report.
+
 Choose a custom suffix:
 
 ```bash
@@ -165,22 +177,28 @@ ForkNeo performs these steps:
 
 1. Validates that the source repository is currently marked as a GitHub fork
 2. Checks that the target repository name is available
-3. Creates an empty repository for the authenticated user
+3. Obtains conversion confirmation unless `--yes` is set
 4. Runs `git clone --mirror` against the source
 5. Removes GitHub read-only refs such as `refs/pull/*`
-6. Verifies Git LFS is available, inspects the complete mirror, and migrates every LFS object when present
-7. Runs `git push --mirror` to the new repository
-8. Restores the default branch setting
-9. Verifies the selected default branch and exact object SHA of every branch and tag ref
-10. Writes a report to `.forkneo/reports`
+6. Verifies Git LFS is available, inspects the complete mirror, and fetches every source LFS object when present
+7. Creates an empty repository for the authenticated user
+8. Runs `git push --mirror` to the new repository and pushes LFS objects when present
+9. Restores the default branch setting
+10. Verifies the selected default branch and exact object SHA of every branch and tag ref
+11. Writes a report to `.forkneo/reports`
 
 Temporary local mirror repositories are removed even when migration fails. If remote repository creation succeeds and a later stage fails, ForkNeo keeps the remote target in place and reports the state instead of deleting it automatically.
 
-If Git LFS is missing or source-object inspection fails, conversion stops before
-the mirror push. The newly created target repository remains empty so that
-ForkNeo does not perform destructive cleanup. Install or repair Git LFS, verify
-`git lfs version`, then retry with a new target name or inspect the retained
-target before deciding whether to delete it.
+If mirror cloning, ref pruning, Git LFS availability or inspection, or the
+source LFS fetch fails, conversion stops before target creation. Install or
+repair Git LFS, verify `git lfs version`, then retry; no target repository was
+created by that failed preflight.
+
+If the GitHub create request itself times out or fails without a successful
+response, inspect the proposed target name before retrying because GitHub may
+have completed the request remotely. After a successful create response, any
+later failure keeps the target for explicit recovery and never triggers
+automatic deletion.
 
 ## Output
 
@@ -217,16 +235,17 @@ Use disposable repositories for an end-to-end validation:
 
 Before testing a successful migration, temporarily run the built CLI in an
 environment where `git lfs version` fails. Confirm that ForkNeo reports
-that Git LFS is required, that the target contains no pushed refs, and that
-the target is retained for an explicit recovery or deletion decision.
+that Git LFS is required and that the proposed target repository was not
+created.
 
 1. Fork a small repository into your account.
 2. Add a test branch and tag.
 3. Add an LFS object if you also want to validate LFS migration.
-4. Run `forkneo convert owner/source --name source-neo-test`.
-5. Run `forkneo verify owner/source-neo-test --source owner/source`.
-6. Inspect the generated report and the target repository on GitHub.
-7. Delete the disposable repositories manually after testing.
+4. Confirm a unique target name does not exist, run `forkneo convert owner/source --name source-neo-test --dry-run`, and confirm the target still does not exist.
+5. Run `forkneo convert owner/source --name source-neo-test`.
+6. Run `forkneo verify owner/source-neo-test --source owner/source`.
+7. Inspect the generated report and the target repository on GitHub.
+8. Delete the disposable repositories manually after testing.
 
 ## Development
 
