@@ -45,17 +45,25 @@ describe("GitHubRepositoryService", () => {
     ]);
   });
 
-  it("loads a repository state for verification", async () => {
+  it("loads exact head and tag object SHAs for verification", async () => {
     const octokit = {
       paginate: vi
         .fn()
-        .mockResolvedValueOnce([{ name: "main" }, { name: "release" }])
-        .mockResolvedValueOnce([{ name: "v1" }]),
+        .mockResolvedValueOnce([
+          { ref: "refs/heads/main", object: { sha: "commit-main" } },
+          { ref: "refs/heads/release", object: { sha: "commit-release" } },
+        ])
+        .mockResolvedValueOnce([
+          { ref: "refs/tags/v1", object: { sha: "annotated-tag-object" } },
+        ]),
       rest: {
         repos: {
-          listBranches: vi.fn(),
-          listTags: vi.fn(),
-          getCommit: vi.fn().mockResolvedValue({ data: { sha: "abc123" } }),
+          get: vi.fn().mockResolvedValue({
+            data: { default_branch: "main" },
+          }),
+        },
+        git: {
+          listMatchingRefs: vi.fn(),
         },
       },
     };
@@ -66,11 +74,35 @@ describe("GitHubRepositoryService", () => {
         owner: "alex",
         repo: "project",
         fullName: "alex/project",
-      }, "main"),
+      }),
     ).resolves.toEqual({
-      latestCommit: "abc123",
-      branches: ["main", "release"],
-      tags: ["v1"],
+      defaultBranch: "main",
+      refs: {
+        "refs/heads/main": "commit-main",
+        "refs/heads/release": "commit-release",
+        "refs/tags/v1": "annotated-tag-object",
+      },
     });
+
+    expect(octokit.paginate).toHaveBeenNthCalledWith(
+      1,
+      octokit.rest.git.listMatchingRefs,
+      {
+        owner: "alex",
+        repo: "project",
+        ref: "heads/",
+        per_page: 100,
+      },
+    );
+    expect(octokit.paginate).toHaveBeenNthCalledWith(
+      2,
+      octokit.rest.git.listMatchingRefs,
+      {
+        owner: "alex",
+        repo: "project",
+        ref: "tags/",
+        per_page: 100,
+      },
+    );
   });
 });

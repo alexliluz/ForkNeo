@@ -28,6 +28,11 @@ interface ApiRepository {
   parent?: { full_name: string };
 }
 
+interface ApiGitRef {
+  ref: string;
+  object: { sha: string };
+}
+
 function mapRepository(repository: ApiRepository): RepositoryInfo {
   return {
     owner: repository.owner.login,
@@ -109,30 +114,35 @@ export class GitHubRepositoryService implements GitHubService {
 
   async getRepositoryState(
     reference: RepositoryReference,
-    defaultBranch: string,
   ): Promise<RepositoryState> {
-    const [commit, branches, tags] = await Promise.all([
-      this.octokit.rest.repos.getCommit({
+    const [repository, heads, tags] = await Promise.all([
+      this.octokit.rest.repos.get({
         owner: reference.owner,
         repo: reference.repo,
-        ref: defaultBranch,
       }),
-      this.octokit.paginate(this.octokit.rest.repos.listBranches, {
+      this.octokit.paginate(this.octokit.rest.git.listMatchingRefs, {
         owner: reference.owner,
         repo: reference.repo,
+        ref: "heads/",
         per_page: 100,
       }),
-      this.octokit.paginate(this.octokit.rest.repos.listTags, {
+      this.octokit.paginate(this.octokit.rest.git.listMatchingRefs, {
         owner: reference.owner,
         repo: reference.repo,
+        ref: "tags/",
         per_page: 100,
       }),
     ]);
 
+    const refs = Object.fromEntries(
+      ([...heads, ...tags] as ApiGitRef[])
+        .map(({ ref, object }) => [ref, object.sha] as const)
+        .sort(([left], [right]) => left.localeCompare(right)),
+    );
+
     return {
-      latestCommit: commit.data.sha,
-      branches: (branches as Array<{ name: string }>).map(({ name }) => name),
-      tags: (tags as Array<{ name: string }>).map(({ name }) => name),
+      defaultBranch: repository.data.default_branch,
+      refs,
     };
   }
 
