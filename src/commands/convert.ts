@@ -85,7 +85,11 @@ export async function runConvert(
       await dependencies.git.pruneUnsupportedRefs(mirrorDirectory);
       const lfsMigrated = await dependencies.git.hasLfs(mirrorDirectory);
       if (lfsMigrated) {
-        await dependencies.git.fetchAllLfs(mirrorDirectory, dependencies.token);
+        await dependencies.git.fetchAllLfs(
+          mirrorDirectory,
+          source.cloneUrl,
+          dependencies.token,
+        );
       }
       await dependencies.git.pushMirror(mirrorDirectory, target.cloneUrl, dependencies.token);
       if (lfsMigrated) {

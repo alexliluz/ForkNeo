@@ -1,6 +1,10 @@
 import { execa, type Options } from "execa";
 
 import { ForkNeoError } from "../utils/errors.js";
+import {
+  createGitAuthentication,
+  redactGitSecrets,
+} from "./auth.js";
 
 type CommandResult = { stdout: string; stderr: string };
 type CommandRunner = (
@@ -17,59 +21,79 @@ const defaultRunner: CommandRunner = async (file, args, options) => {
   };
 };
 
-function authenticatedUrl(url: string, token: string): string {
-  const parsed = new URL(url);
-  parsed.username = "x-access-token";
-  parsed.password = token;
-  return parsed.toString();
-}
-
-function redact(value: string, token: string): string {
-  return value
-    .replaceAll(token, "[REDACTED]")
-    .replaceAll(encodeURIComponent(token), "[REDACTED]");
-}
-
 export class ShellGitService {
   constructor(private readonly run: CommandRunner = defaultRunner) {}
 
   private async execute(
+    operation: string,
     args: string[],
     options: Options,
-    token: string,
+    secrets: readonly string[] = [],
   ): Promise<CommandResult> {
     try {
       return await this.run("git", args, options);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const detail = redactGitSecrets(
+        error instanceof Error ? error.message : String(error),
+        secrets,
+      );
+      const message = `Git ${operation} failed: ${detail}`;
       throw new ForkNeoError(
         "GIT_COMMAND_FAILED",
-        redact(message, token),
+        message,
         "Run with a valid token and confirm Git and Git LFS are installed.",
-        { cause: error },
+        { cause: new Error(message) },
       );
     }
   }
 
-  async cloneMirror(sourceUrl: string, directory: string, token: string): Promise<void> {
-    await this.execute(
-      ["clone", "--mirror", authenticatedUrl(sourceUrl, token), directory],
-      { reject: true },
-      token,
+  private async executeAuthenticated(
+    operation: string,
+    args: string[],
+    options: Options,
+    repositoryUrl: string,
+    token: string,
+  ): Promise<CommandResult> {
+    const authentication = createGitAuthentication(repositoryUrl, token);
+    return this.execute(
+      operation,
+      args,
+      { ...options, env: authentication.env },
+      authentication.secrets,
     );
   }
 
-  async pushMirror(directory: string, targetUrl: string, token: string): Promise<void> {
+  async cloneMirror(
+    sourceUrl: string,
+    directory: string,
+    token: string,
+  ): Promise<void> {
+    const authentication = createGitAuthentication(sourceUrl, token);
     await this.execute(
-      ["push", "--mirror", authenticatedUrl(targetUrl, token)],
-      { cwd: directory, reject: true },
-      token,
+      "mirror clone",
+      ["clone", "--mirror", authentication.url, directory],
+      { reject: true, env: authentication.env },
+      authentication.secrets,
+    );
+  }
+
+  async pushMirror(
+    directory: string,
+    targetUrl: string,
+    token: string,
+  ): Promise<void> {
+    const authentication = createGitAuthentication(targetUrl, token);
+    await this.execute(
+      "mirror push",
+      ["push", "--mirror", authentication.url],
+      { cwd: directory, reject: true, env: authentication.env },
+      authentication.secrets,
     );
   }
 
   async pruneUnsupportedRefs(directory: string): Promise<void> {
-    const result = await this.run(
-      "git",
+    const result = await this.execute(
+      "pull-request ref inspection",
       ["for-each-ref", "--format=%(refname)", "refs/pull"],
       { cwd: directory, reject: true },
     );
@@ -77,11 +101,15 @@ export class ShellGitService {
     if (refs.length === 0) {
       return;
     }
-    await this.run("git", ["update-ref", "--stdin"], {
-      cwd: directory,
-      input: `${refs.map((ref) => `delete ${ref}`).join("\n")}\n`,
-      reject: true,
-    });
+    await this.execute(
+      "pull-request ref removal",
+      ["update-ref", "--stdin"],
+      {
+        cwd: directory,
+        input: `${refs.map((ref) => `delete ${ref}`).join("\n")}\n`,
+        reject: true,
+      },
+    );
   }
 
   async hasLfs(directory: string): Promise<boolean> {
@@ -97,8 +125,18 @@ export class ShellGitService {
     }
   }
 
-  async fetchAllLfs(directory: string, token: string): Promise<void> {
-    await this.execute(["lfs", "fetch", "--all"], { cwd: directory, reject: true }, token);
+  async fetchAllLfs(
+    directory: string,
+    sourceUrl: string,
+    token: string,
+  ): Promise<void> {
+    await this.executeAuthenticated(
+      "LFS fetch",
+      ["lfs", "fetch", "--all", "origin"],
+      { cwd: directory, reject: true },
+      sourceUrl,
+      token,
+    );
   }
 
   async pushAllLfs(
@@ -106,10 +144,12 @@ export class ShellGitService {
     targetUrl: string,
     token: string,
   ): Promise<void> {
+    const authentication = createGitAuthentication(targetUrl, token);
     await this.execute(
-      ["lfs", "push", "--all", authenticatedUrl(targetUrl, token)],
-      { cwd: directory, reject: true },
-      token,
+      "LFS push",
+      ["lfs", "push", "--all", authentication.url],
+      { cwd: directory, reject: true, env: authentication.env },
+      authentication.secrets,
     );
   }
 }
