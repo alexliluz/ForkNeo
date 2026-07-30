@@ -92,14 +92,31 @@ describe("ShellGitService", () => {
     expect(String(failure.cause)).not.toContain(basicCredential);
   });
 
-  it("detects and migrates Git LFS objects", async () => {
+  it("checks Git LFS availability before listing source objects", async () => {
     const run = vi
       .fn()
-      .mockResolvedValueOnce({ stdout: "filter=lfs diff=lfs merge=lfs -text\n", stderr: "" })
-      .mockResolvedValue({ stdout: "", stderr: "" });
+      .mockResolvedValueOnce({
+        stdout: "git-lfs/3.7.0",
+        stderr: "",
+      })
+      .mockResolvedValueOnce({
+        stdout: "fixtures/archive.bin\n",
+        stderr: "",
+      });
     const git = new ShellGitService(run);
 
     await expect(git.hasLfs("C:/tmp/repo.git")).resolves.toBe(true);
+
+    expect(run.mock.calls.map(([, args]) => args)).toEqual([
+      ["lfs", "version"],
+      ["lfs", "ls-files", "--all", "--name-only"],
+    ]);
+  });
+
+  it("migrates Git LFS objects", async () => {
+    const run = vi.fn().mockResolvedValue({ stdout: "", stderr: "" });
+    const git = new ShellGitService(run);
+
     await git.fetchAllLfs(
       "C:/tmp/repo.git",
       "https://github.com/a/source.git",

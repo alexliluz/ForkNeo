@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { runConvert } from "../../src/commands/convert.js";
+import { ForkNeoError } from "../../src/utils/errors.js";
 
 function repository(overrides: Record<string, unknown> = {}) {
   return {
@@ -30,6 +31,58 @@ describe("runConvert", () => {
     await expect(
       runConvert("alex/project", {}, { github } as never),
     ).rejects.toMatchObject({ code: "SOURCE_NOT_FORK" });
+  });
+
+  it("stops before every push when Git LFS inspection fails", async () => {
+    const source = repository();
+    const target = repository({
+      name: "project-neo",
+      fullName: "alex/project-neo",
+      isFork: false,
+      cloneUrl: "https://github.com/alex/project-neo.git",
+      htmlUrl: "https://github.com/alex/project-neo",
+    });
+    const github = {
+      getRepository: vi.fn().mockResolvedValue(source),
+      getCurrentUser: vi.fn().mockResolvedValue("alex"),
+      repositoryExists: vi.fn().mockResolvedValue(false),
+      createRepository: vi.fn().mockResolvedValue(target),
+    };
+    const git = {
+      cloneMirror: vi.fn(),
+      pruneUnsupportedRefs: vi.fn(),
+      hasLfs: vi.fn().mockRejectedValue(
+        new ForkNeoError(
+          "GIT_LFS_INSPECTION_FAILED",
+          "Git LFS could not inspect all objects in the source mirror.",
+          "The target repository exists, but no refs or LFS objects were pushed.",
+        ),
+      ),
+      fetchAllLfs: vi.fn(),
+      pushMirror: vi.fn(),
+      pushAllLfs: vi.fn(),
+    };
+
+    await expect(
+      runConvert(
+        "alex/project",
+        { yes: true },
+        {
+          github,
+          git,
+          token: "secret",
+          confirm: vi.fn(),
+          withTemp: async (work: (directory: string) => Promise<unknown>) =>
+            work("C:/tmp/work"),
+        } as never,
+      ),
+    ).rejects.toMatchObject({ code: "GIT_LFS_INSPECTION_FAILED" });
+
+    expect(git.cloneMirror).toHaveBeenCalled();
+    expect(git.pruneUnsupportedRefs).toHaveBeenCalled();
+    expect(git.fetchAllLfs).not.toHaveBeenCalled();
+    expect(git.pushMirror).not.toHaveBeenCalled();
+    expect(git.pushAllLfs).not.toHaveBeenCalled();
   });
 
   it("migrates refs and LFS, verifies, and writes a report", async () => {
