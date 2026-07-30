@@ -214,13 +214,13 @@ describe("createGitAuthentication", () => {
     );
     scratchDirectories.push(directory);
 
-    const helperMarkerPath = path.join(directory, "helper-invoked");
-    const askpassMarkerPath = path.join(directory, "askpass-invoked");
-    await createSentinelCommand(
+    const helperMarkerPath = path.join(
       directory,
-      "git-credential-sentinel",
-      helperMarkerPath,
+      "helper marker with spaces & apostrophe's",
     );
+    const askpassMarkerPath = path.join(directory, "askpass-invoked");
+    const credentialHelper =
+      '!f() { printf invoked >> "$FORKNEO_TEST_HELPER_MARKER"; }; f';
     const askpassPath = await createSentinelCommand(
       directory,
       "askpass-sentinel",
@@ -229,6 +229,7 @@ describe("createGitAuthentication", () => {
     const globalConfigPath = path.join(directory, "global.gitconfig");
     const isolatedEnv = {
       ...process.env,
+      FORKNEO_TEST_HELPER_MARKER: helperMarkerPath,
       HOME: directory,
       USERPROFILE: directory,
       XDG_CONFIG_HOME: directory,
@@ -239,7 +240,13 @@ describe("createGitAuthentication", () => {
 
     await execa(
       "git",
-      ["config", "--file", globalConfigPath, "credential.helper", "sentinel"],
+      [
+        "config",
+        "--file",
+        globalConfigPath,
+        "credential.helper",
+        credentialHelper,
+      ],
       { env: isolatedEnv },
     );
     await execa(
@@ -252,7 +259,7 @@ describe("createGitAuthentication", () => {
       ...isolatedEnv,
       GIT_ASKPASS: askpassPath,
       SSH_ASKPASS: askpassPath,
-      GIT_CONFIG_PARAMETERS: "'credential.helper=sentinel'",
+      GIT_CONFIG_PARAMETERS: `'credential.helper=${credentialHelper}'`,
     };
     await execa("git", ["credential", "fill"], {
       env: { ...baseEnv, GIT_TERMINAL_PROMPT: "0" },
@@ -294,8 +301,9 @@ describe("createGitAuthentication", () => {
     );
     expect(baseEnv.GIT_ASKPASS).toBe(askpassPath);
     expect(baseEnv.SSH_ASKPASS).toBe(askpassPath);
+    expect(baseEnv.FORKNEO_TEST_HELPER_MARKER).toBe(helperMarkerPath);
     expect(baseEnv.GIT_CONFIG_PARAMETERS).toBe(
-      "'credential.helper=sentinel'",
+      `'credential.helper=${credentialHelper}'`,
     );
   });
 });

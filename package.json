@@ -1,6 +1,6 @@
 {
   "name": "forkneo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Convert GitHub forks into independent repositories while preserving Git history.",
   "type": "module",
   "repository": {
@@ -33,7 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "license": "MIT",
   "dependencies": {
