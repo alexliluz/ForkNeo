@@ -145,7 +145,10 @@ Compare the target against the original source repository:
 forkneo verify owner/project-neo --source owner/project
 ```
 
-With `--source`, verification compares the latest default-branch commit plus the complete branch and tag name sets. Any mismatch returns a non-zero exit code.
+With `--source`, verification compares the selected default branch and every
+`refs/heads/*` and `refs/tags/*` ref-object SHA. It reports missing, unexpected,
+and mismatched refs in ref-name order. A single difference returns a non-zero
+exit code.
 
 ## Typical Workflow
 
@@ -168,7 +171,7 @@ ForkNeo performs these steps:
 6. Verifies Git LFS is available, inspects the complete mirror, and migrates every LFS object when present
 7. Runs `git push --mirror` to the new repository
 8. Restores the default branch setting
-9. Verifies branch and tag parity
+9. Verifies the selected default branch and exact object SHA of every branch and tag ref
 10. Writes a report to `.forkneo/reports`
 
 Temporary local mirror repositories are removed even when migration fails. If remote repository creation succeeds and a later stage fails, ForkNeo keeps the remote target in place and reports the state instead of deleting it automatically.
@@ -191,9 +194,8 @@ Each report records:
 
 - Source repository
 - Target repository
-- Default branch
-- Branch count
-- Tag count
+- Selected default branch
+- Number of exactly verified branch and tag refs
 - LFS detection result
 - Verification status
 - Completion timestamp
