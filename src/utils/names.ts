@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ForkNeoError } from "./errors.js";
 
 const namePattern = /^[A-Za-z0-9_.-]+$/;
+const maximumRepositoryNameLength = 100;
 const repositorySchema = z
   .string()
   .trim()
@@ -43,6 +44,14 @@ export function buildTargetName(
     throw new ForkNeoError(
       "INVALID_TARGET_NAME",
       `Invalid target repository name: ${target}`,
+    );
+  }
+
+  if (target.length > maximumRepositoryNameLength) {
+    throw new ForkNeoError(
+      "INVALID_TARGET_NAME",
+      `Target repository name must not exceed GitHub's limit of ${maximumRepositoryNameLength} characters (received ${target.length}).`,
+      `Use --name with a target repository name of ${maximumRepositoryNameLength} characters or fewer.`,
     );
   }
 
