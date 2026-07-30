@@ -14,6 +14,7 @@ export interface ConvertOptions {
   name?: string;
   suffix?: string;
   yes?: boolean;
+  dryRun?: boolean;
 }
 
 export interface ConvertDependencies {
@@ -26,12 +27,24 @@ export interface ConvertDependencies {
   now?: () => Date;
 }
 
-export interface ConvertResult {
+export interface DryRunResult {
+  mode: "dry-run";
+  source: string;
+  target: string;
+  defaultBranch: string;
+  refCount: number;
+  lfsDetected: boolean;
+}
+
+export interface ConvertedResult {
+  mode: "converted";
   source: string;
   target: string;
   reportPath: string;
   lfsMigrated: boolean;
 }
+
+export type ConvertResult = DryRunResult | ConvertedResult;
 
 export async function runConvert(
   sourceValue: string,
@@ -59,7 +72,7 @@ export async function runConvert(
     );
   }
 
-  if (!options.yes) {
+  if (!options.dryRun && !options.yes) {
     const accepted = await dependencies.confirm(
       `Create ${targetReference.fullName} and mirror ${source.fullName} into it?`,
     );
@@ -68,34 +81,61 @@ export async function runConvert(
     }
   }
 
-  const target = await dependencies.github.createRepository({
-    name: targetName,
-    description: source.description ?? undefined,
-    isPrivate: source.isPrivate,
-  });
-
   const useTemp = dependencies.withTemp ?? withTempDirectory;
   const saveReport = dependencies.writeReport ?? writeMigrationReport;
   const now = dependencies.now ?? (() => new Date());
+  let target:
+    | Awaited<ReturnType<GitHubService["createRepository"]>>
+    | undefined;
+  let creationAttempted = false;
 
   try {
+    const dryRunSourceState = options.dryRun
+      ? await dependencies.github.getRepositoryState(sourceReference)
+      : null;
+
     return await useTemp(async (directory) => {
       const mirrorDirectory = path.join(directory, `${targetName}.git`);
       await dependencies.git.cloneMirror(source.cloneUrl, mirrorDirectory, dependencies.token);
       await dependencies.git.pruneUnsupportedRefs(mirrorDirectory);
-      const lfsMigrated = await dependencies.git.hasLfs(mirrorDirectory);
-      if (lfsMigrated) {
+      const lfsDetected = await dependencies.git.hasLfs(mirrorDirectory);
+
+      if (dryRunSourceState !== null) {
+        return {
+          mode: "dry-run",
+          source: source.fullName,
+          target: targetReference.fullName,
+          defaultBranch: dryRunSourceState.defaultBranch,
+          refCount: Object.keys(dryRunSourceState.refs).length,
+          lfsDetected,
+        };
+      }
+
+      if (lfsDetected) {
         await dependencies.git.fetchAllLfs(
           mirrorDirectory,
           source.cloneUrl,
           dependencies.token,
         );
       }
-      await dependencies.git.pushMirror(mirrorDirectory, target.cloneUrl, dependencies.token);
-      if (lfsMigrated) {
+
+      creationAttempted = true;
+      const createdTarget = await dependencies.github.createRepository({
+        name: targetName,
+        description: source.description ?? undefined,
+        isPrivate: source.isPrivate,
+      });
+      target = createdTarget;
+
+      await dependencies.git.pushMirror(
+        mirrorDirectory,
+        createdTarget.cloneUrl,
+        dependencies.token,
+      );
+      if (lfsDetected) {
         await dependencies.git.pushAllLfs(
           mirrorDirectory,
-          target.cloneUrl,
+          createdTarget.cloneUrl,
           dependencies.token,
         );
       }
@@ -115,31 +155,60 @@ export async function runConvert(
 
       const reportPath = await saveReport({
         source: source.fullName,
-        target: target.fullName,
+        target: createdTarget.fullName,
         sourceUrl: source.cloneUrl,
-        targetUrl: target.htmlUrl,
+        targetUrl: createdTarget.htmlUrl,
         defaultBranch: source.defaultBranch,
         refCount: Object.keys(targetState.refs).length,
-        lfsMigrated,
+        lfsMigrated: lfsDetected,
         verified: true,
         completedAt: now(),
       });
 
       return {
+        mode: "converted",
         source: source.fullName,
-        target: target.fullName,
+        target: createdTarget.fullName,
         reportPath,
-        lfsMigrated,
+        lfsMigrated: lfsDetected,
       };
     });
   } catch (error) {
+    if (target) {
+      if (error instanceof ForkNeoError) {
+        const retainedTargetHint =
+          `Target ${target.fullName} was kept for explicit recovery; ForkNeo did not delete it.`;
+        throw new ForkNeoError(
+          error.code,
+          error.message,
+          error.hint
+            ? `${error.hint} ${retainedTargetHint}`
+            : retainedTargetHint,
+          { cause: error },
+        );
+      }
+      throw new ForkNeoError(
+        "CONVERSION_FAILED",
+        `Conversion failed after creating ${target.fullName}. The remote repository was kept.`,
+        "Review the error, fix the cause, then retry with a new target name or complete the mirror push manually.",
+        { cause: error },
+      );
+    }
+    if (creationAttempted) {
+      throw new ForkNeoError(
+        "TARGET_CREATION_UNCERTAIN",
+        `Conversion failed while creating ${targetReference.fullName}; it may have been created even though GitHub did not return a successful response.`,
+        `Inspect ${targetReference.fullName} on GitHub before retrying or choosing a new target name.`,
+        { cause: error },
+      );
+    }
     if (error instanceof ForkNeoError) {
       throw error;
     }
     throw new ForkNeoError(
-      "CONVERSION_FAILED",
-      `Conversion failed after creating ${target.fullName}. The remote repository was kept.`,
-      "Review the error, fix the cause, then retry with a new target name or complete the mirror push manually.",
+      "CONVERSION_PREFLIGHT_FAILED",
+      `Conversion preflight failed before creating ${targetReference.fullName}.`,
+      "Review the cause, fix the source or local tooling, then retry. No target repository was created.",
       { cause: error },
     );
   }

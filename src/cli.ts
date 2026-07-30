@@ -64,11 +64,25 @@ export function createProgram(provider: DependencyProvider): Command {
     .option("--name <name>", "explicit target repository name")
     .option("--suffix <suffix>", "target suffix", "neo")
     .option("-y, --yes", "skip the confirmation prompt")
+    .option("--dry-run", "validate conversion without remote changes")
     .action(async (repository: string, options: ConvertOptions) => {
       const dependencies = await resolveDependencies(provider);
-      const result = await withStatus("Migrating repository", () =>
-        runConvert(repository, options, dependencies),
+      const result = await withStatus(
+        options.dryRun ? "Checking conversion" : "Migrating repository",
+        () => runConvert(repository, options, dependencies),
       );
+      if (result.mode === "dry-run") {
+        dependencies.write(
+          chalk.green(`Dry run passed: ${result.source} -> ${result.target}`),
+        );
+        dependencies.write(`Default branch: ${result.defaultBranch}`);
+        dependencies.write(`Refs: ${result.refCount}`);
+        dependencies.write(
+          `Git LFS: ${result.lfsDetected ? "detected" : "not detected"}`,
+        );
+        dependencies.write("Remote changes: none");
+        return;
+      }
       dependencies.write(chalk.green(`Converted ${result.source} to ${result.target}`));
       dependencies.write(`Report: ${result.reportPath}`);
     });
