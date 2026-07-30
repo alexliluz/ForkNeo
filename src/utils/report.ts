@@ -8,8 +8,7 @@ export interface MigrationReportData {
   sourceUrl: string;
   targetUrl: string;
   defaultBranch: string;
-  branchCount: number;
-  tagCount: number;
+  refCount: number;
   lfsMigrated: boolean;
   verified: boolean;
   completedAt: Date;
@@ -36,8 +35,7 @@ export function formatMigrationReport(data: MigrationReportData): string {
 | Source URL | ${publicUrl(data.sourceUrl)} |
 | Target URL | ${publicUrl(data.targetUrl)} |
 | Default branch | ${data.defaultBranch} |
-| Branches | ${data.branchCount} |
-| Tags | ${data.tagCount} |
+| Verified refs | ${data.refCount} |
 | Git LFS | ${data.lfsMigrated ? "Migrated" : "Not detected"} |
 | Verification | ${data.verified ? "Passed" : "Failed"} |
 | Completed at | ${data.completedAt.toISOString()} |

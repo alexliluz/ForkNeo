@@ -14,9 +14,8 @@ export interface VerifyDependencies {
 export interface VerifyResult {
   verified: true;
   target: string;
-  latestCommit: string;
-  branchCount: number;
-  tagCount: number;
+  defaultBranch: string;
+  refCount: number;
 }
 
 export async function runVerify(
@@ -36,22 +35,20 @@ export async function runVerify(
 
   const targetState = await dependencies.github.getRepositoryState(
     targetReference,
-    target.defaultBranch,
   );
 
   if (options.source) {
     const sourceReference = parseRepository(options.source);
-    const source = await dependencies.github.getRepository(sourceReference);
+    await dependencies.github.getRepository(sourceReference);
     const sourceState = await dependencies.github.getRepositoryState(
       sourceReference,
-      source.defaultBranch,
     );
     const comparison = compareRepositoryState(sourceState, targetState);
     if (!comparison.matches) {
       throw new ForkNeoError(
         "VERIFICATION_FAILED",
         `Verification failed for ${target.fullName}:\n${comparison.differences.join("\n")}`,
-        "Inspect the missing refs and rerun the mirror push before verifying again.",
+        "Inspect the mismatched refs and rerun the mirror push before verifying again.",
       );
     }
   }
@@ -59,8 +56,7 @@ export async function runVerify(
   return {
     verified: true,
     target: target.fullName,
-    latestCommit: targetState.latestCommit,
-    branchCount: targetState.branches.length,
-    tagCount: targetState.tags.length,
+    defaultBranch: targetState.defaultBranch,
+    refCount: Object.keys(targetState.refs).length,
   };
 }

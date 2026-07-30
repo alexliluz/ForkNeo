@@ -102,8 +102,8 @@ export async function runConvert(
 
       await dependencies.github.setDefaultBranch(targetReference, source.defaultBranch);
       const [sourceState, targetState] = await Promise.all([
-        dependencies.github.getRepositoryState(sourceReference, source.defaultBranch),
-        dependencies.github.getRepositoryState(targetReference, source.defaultBranch),
+        dependencies.github.getRepositoryState(sourceReference),
+        dependencies.github.getRepositoryState(targetReference),
       ]);
       const comparison = compareRepositoryState(sourceState, targetState);
       if (!comparison.matches) {
@@ -119,8 +119,7 @@ export async function runConvert(
         sourceUrl: source.cloneUrl,
         targetUrl: target.htmlUrl,
         defaultBranch: source.defaultBranch,
-        branchCount: targetState.branches.length,
-        tagCount: targetState.tags.length,
+        refCount: Object.keys(targetState.refs).length,
         lfsMigrated,
         verified: true,
         completedAt: now(),
