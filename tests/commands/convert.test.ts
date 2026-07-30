@@ -26,6 +26,51 @@ function repository(overrides: Record<string, unknown> = {}) {
 }
 
 describe("runConvert", () => {
+  it("rejects an overlong derived target before conversion preflight", async () => {
+    const sourceName = "a".repeat(100);
+    const github = {
+      getRepository: vi.fn().mockResolvedValue(
+        repository({
+          name: sourceName,
+          fullName: `alex/${sourceName}`,
+        }),
+      ),
+      getCurrentUser: vi.fn(),
+      repositoryExists: vi.fn(),
+      getRepositoryState: vi.fn(),
+      createRepository: vi.fn(),
+    };
+    const git = {
+      cloneMirror: vi.fn(),
+      pruneUnsupportedRefs: vi.fn(),
+      hasLfs: vi.fn(),
+      fetchAllLfs: vi.fn(),
+      pushMirror: vi.fn(),
+      pushAllLfs: vi.fn(),
+    };
+    const confirm = vi.fn();
+
+    await expect(
+      runConvert(
+        `alex/${sourceName}`,
+        { dryRun: true },
+        { github, git, token: "secret", confirm } as never,
+      ),
+    ).rejects.toMatchObject({
+      code: "INVALID_TARGET_NAME",
+      message: expect.stringMatching(/100 characters/i),
+      hint: expect.stringMatching(/--name/i),
+    });
+
+    expect(github.getCurrentUser).not.toHaveBeenCalled();
+    expect(github.repositoryExists).not.toHaveBeenCalled();
+    expect(github.getRepositoryState).not.toHaveBeenCalled();
+    expect(github.createRepository).not.toHaveBeenCalled();
+    expect(git.cloneMirror).not.toHaveBeenCalled();
+    expect(git.hasLfs).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
   it("rejects a source that is not a fork", async () => {
     const github = { getRepository: vi.fn().mockResolvedValue(repository({ isFork: false })) };
     await expect(

@@ -41,4 +41,21 @@ describe("buildTargetName", () => {
       /target repository name/i,
     );
   });
+
+  it("accepts a target name at GitHub's 100-character boundary", () => {
+    const target = "a".repeat(100);
+    expect(buildTargetName("project", { name: target })).toBe(target);
+  });
+
+  it("rejects an explicit target name over GitHub's 100-character limit", () => {
+    expect(() =>
+      buildTargetName("project", { name: "a".repeat(101) }),
+    ).toThrow(/100 characters/i);
+  });
+
+  it("rejects a default suffix that pushes the target over the limit", () => {
+    expect(() => buildTargetName("a".repeat(100), {})).toThrow(
+      /100 characters/i,
+    );
+  });
 });

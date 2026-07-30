@@ -279,6 +279,45 @@ describe("createProgram", () => {
     expect(github.createRepository).not.toHaveBeenCalled();
   });
 
+  it("rejects an overlong default target through the convert CLI", async () => {
+    const sourceName = "a".repeat(100);
+    const github = {
+      getRepository: vi.fn().mockResolvedValue(
+        repository({
+          name: sourceName,
+          fullName: `alex/${sourceName}`,
+        }),
+      ),
+      getCurrentUser: vi.fn(),
+      repositoryExists: vi.fn(),
+    };
+    const write = vi.fn();
+    const program = createProgram({
+      github,
+      git: { cloneMirror: vi.fn() },
+      token: "token",
+      confirm: vi.fn(),
+      write,
+    } as never);
+
+    await expect(
+      program.parseAsync([
+        "node",
+        "forkneo",
+        "convert",
+        `alex/${sourceName}`,
+        "--dry-run",
+      ]),
+    ).rejects.toMatchObject({
+      code: "INVALID_TARGET_NAME",
+      message: expect.stringMatching(/100 characters/i),
+    });
+
+    expect(github.getCurrentUser).not.toHaveBeenCalled();
+    expect(github.repositoryExists).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it("reports the verified default branch and exact ref count", async () => {
     const write = vi.fn();
     const program = createProgram({

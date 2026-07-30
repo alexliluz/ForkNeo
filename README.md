@@ -119,6 +119,11 @@ Choose a specific target name:
 forkneo convert owner/project --name project-independent
 ```
 
+GitHub repository names may contain ASCII letters, digits, `.`, `-`, and `_`,
+and must not exceed 100 characters. If the default `-neo` suffix would exceed
+that limit, use `--name` to choose a shorter target; ForkNeo does not silently
+truncate destination names.
+
 Validate a proposed conversion without making remote changes:
 
 ```bash
