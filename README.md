@@ -57,6 +57,16 @@ ForkNeo checks authentication in this order:
 1. `GITHUB_TOKEN`
 2. The token returned by `gh auth token`
 
+ForkNeo accepts only credential-free GitHub HTTPS clone URLs. For each Git or
+Git LFS child process it supplies a repository-scoped HTTP authorization header
+through child-only Git runtime configuration. The token is not added to command
+arguments or saved in the temporary mirror's remote URL.
+
+Authenticated Git commands are non-interactive. If the token is invalid or
+lacks access, ForkNeo fails instead of opening a credential prompt. Reauthenticate
+with `gh auth login` or replace `GITHUB_TOKEN`, then retry with a new target name
+or follow the reported manual-recovery guidance for an already-created target.
+
 ### Option A: Use GitHub CLI
 
 ```bash
@@ -183,6 +193,8 @@ Each report records:
 - ForkNeo does not automatically delete remote targets after partial success.
 - ForkNeo should be used with an account that is allowed to create repositories and push mirrored refs.
 - Fine-grained access tokens still need enough scope to read the source and create/write the target.
+- Authenticated clone and push paths require credential-free HTTPS repository URLs; SSH and URLs containing credentials are rejected.
+- Treat process environments and diagnostic dumps as sensitive even though ForkNeo redacts known token forms from surfaced Git errors.
 
 ## Manual Acceptance Test
 
