@@ -94,7 +94,14 @@ describe("runConvert", () => {
       cloneUrl: "https://github.com/alex/project-neo.git",
       htmlUrl: "https://github.com/alex/project-neo",
     });
-    const state = { latestCommit: "abc", branches: ["main", "release"], tags: ["v1"] };
+    const state = {
+      defaultBranch: "main",
+      refs: {
+        "refs/heads/main": "abc",
+        "refs/heads/release": "def",
+        "refs/tags/v1": "tag-object",
+      },
+    };
     const github = {
       getRepository: vi.fn().mockResolvedValue(source),
       getCurrentUser: vi.fn().mockResolvedValue("alex"),
@@ -138,7 +145,12 @@ describe("runConvert", () => {
       expect.objectContaining({ fullName: "alex/project-neo" }),
       "main",
     );
-    expect(writeReport).toHaveBeenCalledWith(expect.objectContaining({ verified: true }));
+    expect(writeReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verified: true,
+        refCount: 3,
+      }),
+    );
     expect(result.reportPath).toBe("report.md");
   });
 });

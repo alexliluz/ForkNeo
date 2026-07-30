@@ -34,7 +34,6 @@ export interface GitHubService {
   createRepository(input: CreateRepositoryInput): Promise<RepositoryInfo>;
   getRepositoryState(
     reference: RepositoryReference,
-    defaultBranch: string,
   ): Promise<RepositoryState>;
   setDefaultBranch(reference: RepositoryReference, branch: string): Promise<void>;
 }

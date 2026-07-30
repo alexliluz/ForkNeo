@@ -32,6 +32,42 @@ describe("createProgram", () => {
     const convert = program.commands.find((command) => command.name() === "convert");
     expect(convert?.getOptionValue("suffix")).toBe("neo");
   });
+
+  it("reports the verified default branch and exact ref count", async () => {
+    const write = vi.fn();
+    const program = createProgram({
+      github: {
+        getRepository: vi.fn().mockResolvedValue({
+          fullName: "alex/project-neo",
+          isFork: false,
+        }),
+        getRepositoryState: vi.fn().mockResolvedValue({
+          defaultBranch: "main",
+          refs: {
+            "refs/heads/main": "abc",
+            "refs/tags/v1": "tag-object",
+          },
+        }),
+      },
+      git: {},
+      token: "token",
+      confirm: vi.fn(),
+      write,
+    } as never);
+
+    await program.parseAsync([
+      "node",
+      "forkneo",
+      "verify",
+      "alex/project-neo",
+    ]);
+
+    expect(write).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Verified alex/project-neo: default branch main, 2 refs",
+      ),
+    );
+  });
 });
 
 describe("formatCliError", () => {

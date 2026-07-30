@@ -84,7 +84,7 @@ export function createProgram(provider: DependencyProvider): Command {
       );
       dependencies.write(
         chalk.green(
-          `Verified ${result.target}: ${result.branchCount} branches, ${result.tagCount} tags, commit ${result.latestCommit}`,
+          `Verified ${result.target}: default branch ${result.defaultBranch}, ${result.refCount} refs`,
         ),
       );
     });

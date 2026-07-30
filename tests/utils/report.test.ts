@@ -10,8 +10,7 @@ describe("formatMigrationReport", () => {
       sourceUrl: "https://x-access-token:secret@github.com/alex/project.git",
       targetUrl: "https://github.com/alex/project-neo",
       defaultBranch: "main",
-      branchCount: 3,
-      tagCount: 2,
+      refCount: 5,
       lfsMigrated: true,
       verified: true,
       completedAt: new Date("2026-06-19T01:00:00.000Z"),
@@ -20,6 +19,9 @@ describe("formatMigrationReport", () => {
     expect(report).toContain("# ForkNeo Migration Report");
     expect(report).toContain("alex/project-neo");
     expect(report).toContain("Git LFS | Migrated");
+    expect(report).toContain("Verified refs | 5");
+    expect(report).not.toContain("Branches |");
+    expect(report).not.toContain("Tags |");
     expect(report).not.toContain("secret");
   });
 });
