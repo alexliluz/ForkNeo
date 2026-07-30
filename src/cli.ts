@@ -6,7 +6,11 @@ import ora from "ora";
 import { runConvert, type ConvertOptions } from "./commands/convert.js";
 import { runScan } from "./commands/scan.js";
 import { runVerify, type VerifyOptions } from "./commands/verify.js";
-import type { GitHubService, GitService } from "./types/index.js";
+import type {
+  GitHubService,
+  GitService,
+  RepositoryInfo,
+} from "./types/index.js";
 import { ForkNeoError } from "./utils/errors.js";
 import { consoleWriter, type OutputWriter } from "./utils/logger.js";
 import { VERSION } from "./version.js";
@@ -21,8 +25,59 @@ export interface CliDependencies {
 
 type DependencyProvider = CliDependencies | (() => Promise<CliDependencies>);
 
+interface JsonOutputOptions {
+  json?: boolean;
+}
+
+type ConvertCliOptions = ConvertOptions & JsonOutputOptions;
+type VerifyCliOptions = VerifyOptions & JsonOutputOptions;
+
 async function resolveDependencies(provider: DependencyProvider): Promise<CliDependencies> {
   return typeof provider === "function" ? provider() : provider;
+}
+
+function writeJson(write: OutputWriter, value: unknown): void {
+  write(JSON.stringify(value, null, 2));
+}
+
+function writeScanResult(
+  repositories: RepositoryInfo[],
+  write: OutputWriter,
+): void {
+  if (repositories.length === 0) {
+    write("No fork repositories found.");
+    return;
+  }
+
+  write(
+    [
+      "Repository",
+      "Upstream",
+      "Visibility",
+      "Archived",
+      "Size KB",
+      "Language",
+      "Default",
+      "Last push",
+      "License",
+    ].join("\t"),
+  );
+
+  for (const repository of repositories) {
+    write(
+      [
+        repository.fullName,
+        repository.parentFullName ?? "unknown",
+        repository.visibility,
+        repository.archived ? "yes" : "no",
+        String(repository.size),
+        repository.language ?? "unknown",
+        repository.defaultBranch,
+        repository.pushedAt ?? "unknown",
+        repository.license ?? "unknown",
+      ].join("\t"),
+    );
+  }
 }
 
 async function withStatus<T>(label: string, work: () => Promise<T>): Promise<T> {
@@ -50,11 +105,17 @@ export function createProgram(provider: DependencyProvider): Command {
   program
     .command("scan")
     .description("List fork repositories owned by the authenticated user")
-    .action(async () => {
+    .option("--json", "write machine-readable JSON")
+    .action(async (options: JsonOutputOptions) => {
       const dependencies = await resolveDependencies(provider);
-      await withStatus("Scanning GitHub forks", () =>
-        runScan(dependencies.github, dependencies.write),
+      const result = await withStatus("Scanning GitHub forks", () =>
+        runScan(dependencies.github),
       );
+      if (options.json) {
+        writeJson(dependencies.write, result);
+        return;
+      }
+      writeScanResult(result.repositories, dependencies.write);
     });
 
   program
@@ -65,12 +126,17 @@ export function createProgram(provider: DependencyProvider): Command {
     .option("--suffix <suffix>", "target suffix", "neo")
     .option("-y, --yes", "skip the confirmation prompt")
     .option("--dry-run", "validate conversion without remote changes")
-    .action(async (repository: string, options: ConvertOptions) => {
+    .option("--json", "write machine-readable JSON")
+    .action(async (repository: string, options: ConvertCliOptions) => {
       const dependencies = await resolveDependencies(provider);
       const result = await withStatus(
         options.dryRun ? "Checking conversion" : "Migrating repository",
         () => runConvert(repository, options, dependencies),
       );
+      if (options.json) {
+        writeJson(dependencies.write, result);
+        return;
+      }
       if (result.mode === "dry-run") {
         dependencies.write(
           chalk.green(`Dry run passed: ${result.source} -> ${result.target}`),
@@ -92,11 +158,16 @@ export function createProgram(provider: DependencyProvider): Command {
     .description("Verify that a repository is independent and complete")
     .argument("<repository>", "target repository in owner/repo format")
     .option("--source <repository>", "source repository to compare")
-    .action(async (repository: string, options: VerifyOptions) => {
+    .option("--json", "write machine-readable JSON")
+    .action(async (repository: string, options: VerifyCliOptions) => {
       const dependencies = await resolveDependencies(provider);
       const result = await withStatus("Verifying repository", () =>
         runVerify(repository, options, dependencies),
       );
+      if (options.json) {
+        writeJson(dependencies.write, result);
+        return;
+      }
       dependencies.write(
         chalk.green(
           `Verified ${result.target}: default branch ${result.defaultBranch}, ${result.refCount} refs`,
