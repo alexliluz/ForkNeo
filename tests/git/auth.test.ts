@@ -6,6 +6,19 @@ import {
 } from "../../src/git/auth.js";
 
 describe("createGitAuthentication", () => {
+  it("rejects an empty GitHub token", () => {
+    const failure = (() => {
+      try {
+        createGitAuthentication("https://github.com/alex/project.git", "");
+        return undefined;
+      } catch (error) {
+        return error;
+      }
+    })();
+
+    expect(failure).toMatchObject({ code: "INVALID_GITHUB_TOKEN" });
+  });
+
   it("scopes a child-only authorization header to the exact HTTPS URL", () => {
     const baseEnv = { PATH: "/usr/bin", KEEP_ME: "yes" };
     const token = "github token/with spaces";
@@ -49,6 +62,34 @@ describe("createGitAuthentication", () => {
 
     expect(failure).toMatchObject({ code: "UNSUPPORTED_GIT_TRANSPORT" });
   });
+
+  it.each([
+    [
+      "https://github.com/alex/project.git?access_token=query-token",
+      "query-token",
+    ],
+    ["https://github.com/alex/project.git#fragment-token", "fragment-token"],
+  ])(
+    "rejects URLs with credentials in their query or fragment: %s",
+    (url, token) => {
+      let authentication:
+        | ReturnType<typeof createGitAuthentication>
+        | undefined;
+      const failure = (() => {
+        try {
+          authentication = createGitAuthentication(url, "github-token");
+          return undefined;
+        } catch (error) {
+          return error;
+        }
+      })();
+
+      expect(failure).toMatchObject({ code: "UNSUPPORTED_GIT_TRANSPORT" });
+      expect(authentication).toBeUndefined();
+      expect(authentication?.url ?? "").not.toContain(token);
+      expect(authentication?.env.GIT_CONFIG_KEY_0 ?? "").not.toContain(token);
+    },
+  );
 
   it("redacts raw, encoded, and derived credentials", () => {
     const authentication = createGitAuthentication(

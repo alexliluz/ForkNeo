@@ -17,6 +17,14 @@ export function createGitAuthentication(
   token: string,
   baseEnv: NodeJS.ProcessEnv = process.env,
 ): GitAuthentication {
+  if (token.length === 0) {
+    throw new ForkNeoError(
+      "INVALID_GITHUB_TOKEN",
+      "Authenticated Git operations require a non-empty GitHub token.",
+      "Set a non-empty GitHub token before retrying.",
+    );
+  }
+
   let url: URL;
   try {
     url = new URL(value);
@@ -28,7 +36,13 @@ export function createGitAuthentication(
     );
   }
 
-  if (url.protocol !== "https:" || url.username || url.password) {
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
     throw new ForkNeoError(
       "UNSUPPORTED_GIT_TRANSPORT",
       `Authenticated Git operations require a credential-free HTTPS URL: ${url.origin}`,
