@@ -44,6 +44,10 @@ export interface GitService {
   pruneUnsupportedRefs(directory: string): Promise<void>;
   pushMirror(directory: string, targetUrl: string, token: string): Promise<void>;
   hasLfs(directory: string): Promise<boolean>;
-  fetchAllLfs(directory: string, token: string): Promise<void>;
+  fetchAllLfs(
+    directory: string,
+    sourceUrl: string,
+    token: string,
+  ): Promise<void>;
   pushAllLfs(directory: string, targetUrl: string, token: string): Promise<void>;
 }

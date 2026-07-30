@@ -75,6 +75,11 @@ describe("runConvert", () => {
     expect(git.pruneUnsupportedRefs).toHaveBeenCalled();
     expect(git.pushMirror).toHaveBeenCalledWith(expect.any(String), target.cloneUrl, "secret");
     expect(git.fetchAllLfs).toHaveBeenCalled();
+    expect(git.fetchAllLfs).toHaveBeenCalledWith(
+      expect.any(String),
+      source.cloneUrl,
+      "secret",
+    );
     expect(git.pushAllLfs).toHaveBeenCalled();
     expect(github.setDefaultBranch).toHaveBeenCalledWith(
       expect.objectContaining({ fullName: "alex/project-neo" }),
