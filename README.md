@@ -10,7 +10,7 @@ It is built for the practical case where you want to keep the code history of a 
 - Creates a brand new target repository under the authenticated user
 - Mirrors the full Git repository history into the new target
 - Preserves branches, tags, and default branch selection
-- Migrates Git LFS objects when Git LFS is installed and used by the source
+- Verifies Git LFS and migrates all source LFS objects when present
 - Verifies that the target repository is independent and structurally matches the source
 - Writes a migration report to `.forkneo/reports`
 
@@ -31,7 +31,7 @@ The target becomes independent because GitHub creates it as a normal repository 
 
 - Node.js 20 or newer
 - Git
-- Git LFS when the source repository uses LFS
+- Git LFS for every `forkneo convert` operation; ForkNeo verifies the executable before deciding whether the source contains LFS objects
 - GitHub CLI `gh` or a valid `GITHUB_TOKEN`
 - A GitHub token that can read the source repository and create/push repositories for the authenticated user
 
@@ -165,13 +165,19 @@ ForkNeo performs these steps:
 3. Creates an empty repository for the authenticated user
 4. Runs `git clone --mirror` against the source
 5. Removes GitHub read-only refs such as `refs/pull/*`
-6. Detects and migrates Git LFS objects when applicable
+6. Verifies Git LFS is available, inspects the complete mirror, and migrates every LFS object when present
 7. Runs `git push --mirror` to the new repository
 8. Restores the default branch setting
 9. Verifies branch and tag parity
 10. Writes a report to `.forkneo/reports`
 
 Temporary local mirror repositories are removed even when migration fails. If remote repository creation succeeds and a later stage fails, ForkNeo keeps the remote target in place and reports the state instead of deleting it automatically.
+
+If Git LFS is missing or source-object inspection fails, conversion stops before
+the mirror push. The newly created target repository remains empty so that
+ForkNeo does not perform destructive cleanup. Install or repair Git LFS, verify
+`git lfs version`, then retry with a new target name or inspect the retained
+target before deciding whether to delete it.
 
 ## Output
 
@@ -204,6 +210,11 @@ Each report records:
 ## Manual Acceptance Test
 
 Use disposable repositories for an end-to-end validation:
+
+Before testing a successful migration, temporarily run the built CLI in an
+environment where `git lfs version` fails. Confirm that ForkNeo reports
+that Git LFS is required, that the target contains no pushed refs, and that
+the target is retained for an explicit recovery or deletion decision.
 
 1. Fork a small repository into your account.
 2. Add a test branch and tag.

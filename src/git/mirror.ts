@@ -6,6 +6,7 @@ import {
   redactGitSecrets,
   type GitAuthentication,
 } from "./auth.js";
+import { inspectGitLfs } from "./lfs.js";
 
 type CommandResult = { stdout: string; stderr: string };
 type CommandRunner = (
@@ -128,16 +129,7 @@ export class ShellGitService {
   }
 
   async hasLfs(directory: string): Promise<boolean> {
-    try {
-      const result = await this.run(
-        "git",
-        ["lfs", "ls-files", "--all", "--name-only"],
-        { cwd: directory, reject: true },
-      );
-      return result.stdout.trim().length > 0;
-    } catch {
-      return false;
-    }
+    return inspectGitLfs(directory, this.run);
   }
 
   async fetchAllLfs(
