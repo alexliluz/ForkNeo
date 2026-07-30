@@ -176,17 +176,24 @@ clone and LFS work. After confirmation, its order becomes:
 12. write the successful migration report;
 13. remove the temporary workspace in all outcomes.
 
-Failures before step 7 must state that no target repository was created.
-Failures from step 7 onward preserve the target and retain ForkNeo's existing
-manual-recovery guidance. ForkNeo never attempts destructive rollback.
+Failures before step 7 must state that no target repository was created. If
+the create request itself fails or times out, ForkNeo cannot assume whether
+GitHub committed the request; it must tell the user to inspect the proposed
+target before retrying. Failures after a successful create response preserve
+the target and retain ForkNeo's existing manual-recovery guidance. ForkNeo
+never attempts destructive rollback.
 
 ## Error Boundaries
 
-The implementation must distinguish two phases:
+The implementation must distinguish three phases:
 
 - **Preflight failure:** the target does not exist. The error identifies the
   failed local or source-side stage and must not imply that cleanup or a
   remote recovery is needed.
+- **Creation outcome uncertain:** ForkNeo sent the create request but did not
+  receive a successful repository response. The error identifies the proposed
+  target and requires a read check before retrying because GitHub may have
+  completed the request.
 - **Post-creation failure:** the target exists and is kept. The error retains
   the target name and manual-recovery guidance.
 
@@ -312,7 +319,8 @@ The change is complete when:
 - dry-run mode provides the approved preview and makes no remote changes;
 - normal conversion performs all source-side preflight work before target
   creation;
-- preflight and post-creation errors describe the correct recovery boundary;
+- preflight, uncertain-creation, and post-creation errors describe the correct
+  recovery boundary;
 - unit, CLI, build, type, CI, and public-fixture acceptance checks pass;
 - GitHub recognizes both contributors on the genuine shared commit;
 - the pull request receives a real review and merges through the repository's
