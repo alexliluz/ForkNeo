@@ -1,17 +1,11 @@
 export interface RepositoryState {
-  latestCommit: string;
-  branches: string[];
-  tags: string[];
+  defaultBranch: string;
+  refs: Readonly<Record<string, string>>;
 }
 
 export interface RepositoryComparison {
   matches: boolean;
   differences: string[];
-}
-
-function setDifference(left: string[], right: string[]): string[] {
-  const rightSet = new Set(right);
-  return left.filter((value) => !rightSet.has(value)).sort();
 }
 
 export function compareRepositoryState(
@@ -20,29 +14,37 @@ export function compareRepositoryState(
 ): RepositoryComparison {
   const differences: string[] = [];
 
-  if (source.latestCommit !== target.latestCommit) {
+  if (source.defaultBranch !== target.defaultBranch) {
     differences.push(
-      `Latest default-branch commit differs: source ${source.latestCommit}, target ${target.latestCommit}`,
+      `Default branch differs: source ${source.defaultBranch}, target ${target.defaultBranch}`,
     );
   }
 
-  const missingBranches = setDifference(source.branches, target.branches);
-  const extraBranches = setDifference(target.branches, source.branches);
-  const missingTags = setDifference(source.tags, target.tags);
-  const extraTags = setDifference(target.tags, source.tags);
+  const refNames = [
+    ...new Set([...Object.keys(source.refs), ...Object.keys(target.refs)]),
+  ].sort();
 
-  if (missingBranches.length) {
-    differences.push(`Missing target branches: ${missingBranches.join(", ")}`);
-  }
-  if (extraBranches.length) {
-    differences.push(`Extra target branches: ${extraBranches.join(", ")}`);
-  }
-  if (missingTags.length) {
-    differences.push(`Missing target tags: ${missingTags.join(", ")}`);
-  }
-  if (extraTags.length) {
-    differences.push(`Extra target tags: ${extraTags.join(", ")}`);
+  for (const refName of refNames) {
+    const sourceSha = source.refs[refName];
+    const targetSha = target.refs[refName];
+
+    if (sourceSha === undefined && targetSha !== undefined) {
+      differences.push(`Unexpected target ref ${refName} -> ${targetSha}`);
+      continue;
+    }
+    if (sourceSha !== undefined && targetSha === undefined) {
+      differences.push(`Missing target ref ${refName} -> ${sourceSha}`);
+      continue;
+    }
+    if (sourceSha !== targetSha) {
+      differences.push(
+        `Ref object differs for ${refName}: source ${sourceSha}, target ${targetSha}`,
+      );
+    }
   }
 
-  return { matches: differences.length === 0, differences };
+  return {
+    matches: differences.length === 0,
+    differences,
+  };
 }
