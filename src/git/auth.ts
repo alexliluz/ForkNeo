@@ -12,6 +12,21 @@ function uniqueSecrets(values: string[]): string[] {
   );
 }
 
+function createNonInteractiveChildEnv(
+  baseEnv: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const childEnv = { ...baseEnv };
+  for (const key of Object.keys(childEnv)) {
+    if (
+      /^(?:GIT|SSH)_ASKPASS$/i.test(key) ||
+      /^GIT_CONFIG_(?:COUNT|PARAMETERS|KEY_\d+|VALUE_\d+)$/i.test(key)
+    ) {
+      delete childEnv[key];
+    }
+  }
+  return childEnv;
+}
+
 export function createGitAuthentication(
   value: string,
   token: string,
@@ -38,6 +53,7 @@ export function createGitAuthentication(
 
   if (
     url.protocol !== "https:" ||
+    url.origin !== "https://github.com" ||
     url.username ||
     url.password ||
     url.search ||
@@ -45,8 +61,8 @@ export function createGitAuthentication(
   ) {
     throw new ForkNeoError(
       "UNSUPPORTED_GIT_TRANSPORT",
-      `Authenticated Git operations require a credential-free HTTPS URL: ${url.origin}`,
-      "Use the repository HTTPS clone URL without embedded credentials.",
+      "Authenticated Git operations require a credential-free URL on the official GitHub HTTPS origin.",
+      "Use a credential-free https://github.com repository clone URL.",
     );
   }
 
@@ -56,15 +72,22 @@ export function createGitAuthentication(
     "utf8",
   ).toString("base64");
   const authorizationHeader = `Authorization: Basic ${basicCredential}`;
+  const childEnv = createNonInteractiveChildEnv(baseEnv);
 
   return {
     url: repositoryUrl,
     env: {
-      ...baseEnv,
+      ...childEnv,
       GIT_TERMINAL_PROMPT: "0",
-      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_COUNT: "4",
       GIT_CONFIG_KEY_0: `http.${repositoryUrl}.extraHeader`,
       GIT_CONFIG_VALUE_0: authorizationHeader,
+      GIT_CONFIG_KEY_1: "credential.interactive",
+      GIT_CONFIG_VALUE_1: "false",
+      GIT_CONFIG_KEY_2: "credential.helper",
+      GIT_CONFIG_VALUE_2: "",
+      GIT_CONFIG_KEY_3: "core.askPass",
+      GIT_CONFIG_VALUE_3: "",
     },
     secrets: uniqueSecrets([
       token,

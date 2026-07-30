@@ -57,15 +57,20 @@ ForkNeo checks authentication in this order:
 1. `GITHUB_TOKEN`
 2. The token returned by `gh auth token`
 
-ForkNeo accepts only credential-free GitHub HTTPS clone URLs. For each Git or
-Git LFS child process it supplies a repository-scoped HTTP authorization header
-through child-only Git runtime configuration. The token is not added to command
-arguments or saved in the temporary mirror's remote URL.
+ForkNeo accepts only credential-free clone URLs on the official public GitHub
+HTTPS origin (`https://github.com`). GitHub Enterprise Server hosts are not
+supported. For each Git or Git LFS child process it supplies a
+repository-scoped HTTP authorization header through child-only Git runtime
+configuration. The token is not added to command arguments or saved in the
+temporary mirror's remote URL.
 
 Authenticated Git commands are non-interactive. If the token is invalid or
-lacks access, ForkNeo fails instead of opening a credential prompt. Reauthenticate
-with `gh auth login` or replace `GITHUB_TOKEN`, then retry with a new target name
-or follow the reported manual-recovery guidance for an already-created target.
+lacks access, ForkNeo disables inherited credential helpers and askpass
+programs for that child process and fails instead of opening a credential
+prompt. It does not change the parent environment or persist these settings to
+Git configuration. Reauthenticate with `gh auth login` or replace
+`GITHUB_TOKEN`, then retry with a new target name or follow the reported
+manual-recovery guidance for an already-created target.
 
 ### Option A: Use GitHub CLI
 
@@ -193,7 +198,7 @@ Each report records:
 - ForkNeo does not automatically delete remote targets after partial success.
 - ForkNeo should be used with an account that is allowed to create repositories and push mirrored refs.
 - Fine-grained access tokens still need enough scope to read the source and create/write the target.
-- Authenticated clone and push paths require credential-free HTTPS repository URLs; SSH and URLs containing credentials are rejected.
+- Authenticated clone and push paths require credential-free `https://github.com` repository URLs; SSH, other hosts, and URLs containing credentials are rejected.
 - Treat process environments and diagnostic dumps as sensitive even though ForkNeo redacts known token forms from surfaced Git errors.
 
 ## Manual Acceptance Test

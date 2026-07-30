@@ -70,7 +70,12 @@ child-only environment using Git's runtime configuration variables:
 The runtime configuration will provide an `Authorization` header scoped to
 the exact HTTPS repository URL. The header value will use GitHub's token-as-
 password HTTP authentication format. ForkNeo will also disable terminal
-credential prompts so a non-interactive migration fails instead of hanging.
+credential prompts, reset credential helpers and `core.askPass` in the child
+configuration, set `credential.interactive=false`, and remove inherited
+`GIT_ASKPASS` and `SSH_ASKPASS` variables from the child environment. A
+non-interactive migration therefore fails instead of hanging or invoking
+ambient credential programs. The parent environment and persisted Git
+configuration remain unchanged.
 
 This configuration is inherited by Git LFS subprocesses but is not written to
 global, local, or repository Git configuration. The source and target URLs
@@ -82,8 +87,10 @@ The execution adapter will redact all derived secret forms from errors:
 - URL-encoded token text;
 - the generated HTTP authorization value.
 
-ForkNeo will reject non-HTTPS transport URLs in this path instead of sending
-an HTTP authorization header to an unexpected scheme or host.
+ForkNeo will accept only credential-free URLs on the official
+`https://github.com` origin in this path. It will reject other schemes and
+hosts instead of sending an HTTP authorization header to them. GitHub
+Enterprise Server support remains a non-goal for this release.
 
 Git documents both runtime configuration through environment variables and
 the risk of credentials in URLs:
