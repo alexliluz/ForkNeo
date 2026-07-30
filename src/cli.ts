@@ -9,6 +9,7 @@ import { runVerify, type VerifyOptions } from "./commands/verify.js";
 import type { GitHubService, GitService } from "./types/index.js";
 import { ForkNeoError } from "./utils/errors.js";
 import { consoleWriter, type OutputWriter } from "./utils/logger.js";
+import { VERSION } from "./version.js";
 
 export interface CliDependencies {
   github: GitHubService;
@@ -43,7 +44,7 @@ export function createProgram(provider: DependencyProvider): Command {
   const program = new Command()
     .name("forkneo")
     .description("Convert GitHub forks into independent repositories.")
-    .version("0.1.0")
+    .version(VERSION)
     .showHelpAfterError();
 
   program
