@@ -280,9 +280,14 @@ created.
 ```bash
 npm test
 npm run typecheck
-npm run build
+npm run test:package
 node dist/index.js --help
 ```
+
+`npm run test:package` builds ForkNeo, packs the current source, installs the
+tarball in an isolated temporary directory, and runs the installed
+`forkneo --help` and `forkneo --version` commands. This catches package-bin
+and symlink behavior that direct `dist/index.js` execution does not cover.
 
 Pull requests must pass the complete `CI` matrix. The stable `CI` aggregate
 check succeeds only when every operating-system and Node.js matrix job passes.
