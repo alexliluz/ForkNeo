@@ -43,9 +43,9 @@ jobs:
         run: npm test
       - name: Run type checking
         run: npm run typecheck
-      - name: Build CLI
-        run: npm run build
-      - name: Smoke-test built CLI
+      - name: Build and smoke-test installed package
+        run: npm run test:package
+      - name: Smoke-test built CLI directly
         run: node dist/index.js --help
 
   ci:
