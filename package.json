@@ -29,6 +29,8 @@
     "build": "tsup",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
+    "pretest:package": "npm run build",
+    "test:package": "node scripts/smoke-installed-package.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
